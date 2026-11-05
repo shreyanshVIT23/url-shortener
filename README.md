@@ -51,7 +51,6 @@ Python side is managed with [uv](https://docs.astral.sh/uv/).
 ├── tests/
 │   └── test_handlers.py    # pytest + moto (mocked DynamoDB)
 ├── infra/                  # Terraform, see infra/README.md
-└── .claude/                # goals, decisions, tasks, setup notes, official-docs references
 ```
 
 ## API
@@ -64,21 +63,21 @@ curl -s -X POST "$API/shorten" \
   -d '{"url":"https://example.com/some/long/path"}'
 ```
 
-| Status | Body |
-|---|---|
-| `201` | `{"code": "aB3xK9q", "short_url": "https://<api-domain>/aB3xK9q"}` |
-| `400` | `{"error": "Request body must be JSON like {\"url\": \"...\"}"}` or `{"error": "A valid http(s) URL is required"}` |
-| `500` | `{"error": "Could not allocate a unique code, try again"}` (all 5 attempts collided) |
+| Status | Body                                                                                                               |
+| ------ | ------------------------------------------------------------------------------------------------------------------ |
+| `201`  | `{"code": "aB3xK9q", "short_url": "https://<api-domain>/aB3xK9q"}`                                                 |
+| `400`  | `{"error": "Request body must be JSON like {\"url\": \"...\"}"}` or `{"error": "A valid http(s) URL is required"}` |
+| `500`  | `{"error": "Could not allocate a unique code, try again"}` (all 5 attempts collided)                               |
 
 A valid URL has an `http` or `https` scheme, a host, and is at most 2048 characters long. Each call
 creates a new code, so shortening the same URL twice gives two different codes.
 
 ### `GET /{code}`
 
-| Status | Result |
-|---|---|
-| `301` | `Location: <original URL>` |
-| `404` | `{"error": "Not found"}` |
+| Status | Result                     |
+| ------ | -------------------------- |
+| `301`  | `Location: <original URL>` |
+| `404`  | `{"error": "Not found"}`   |
 
 ## Prerequisites
 
@@ -151,31 +150,12 @@ The S3 bucket has `force_destroy = true`, so `destroy` also removes the site fil
 
 Terraform variables (see [`infra/variables.tf`](infra/variables.tf)):
 
-| Variable | Default | Description |
-|---|---|---|
-| `aws_region` | `us-east-1` | AWS region to deploy into |
-| `project_name` | `url-shortener` | Prefix for all resource names |
-| `log_retention_days` | `14` | CloudWatch log retention for the Lambdas |
+| Variable             | Default         | Description                              |
+| -------------------- | --------------- | ---------------------------------------- |
+| `aws_region`         | `us-east-1`     | AWS region to deploy into                |
+| `project_name`       | `url-shortener` | Prefix for all resource names            |
+| `log_retention_days` | `14`            | CloudWatch log retention for the Lambdas |
 
 Outputs: `api_url`, `website_url`, `dynamodb_table`.
 
 The Lambdas read a single environment variable, `TABLE_NAME`, which Terraform sets.
-
-## Development notes
-
-- Python 3.14 is pinned in three places that must agree: `.python-version`, `requires-python` in
-  `pyproject.toml`, and `lambda_runtime` in `infra/lambda.tf`.
-- `lambda` is a Python keyword, so the handlers are imported as top-level modules
-  (`pythonpath = ["src/lambda"]` in the pytest config) instead of as a package.
-- Ruff targets the version from `requires-python` and skips the vendored layer in `infra/build/`.
-- Terraform state is **local** (`infra/terraform.tfstate`) and git-ignored, along with `*tfplan*`
-  and `build/`. Keep the state file safe, or move it to a remote backend before sharing the project.
-- Design decisions and the official-docs notes behind them are in [`.claude/decisions.md`](.claude/decisions.md)
-  and [`.claude/references/`](.claude/references/).
-
-## Ideas
-
-- Click analytics (atomic counter on redirect)
-- Custom aliases and link expiry (DynamoDB TTL)
-- Deduplicate identical URLs (idempotent shorten)
-- CloudWatch alarms on Lambda errors and API 5xx responses
