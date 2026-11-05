@@ -1,0 +1,32 @@
+[project]
+name = "url-shortener"
+version = "0.1.0"
+description = "Serverless URL shortener on AWS (API Gateway + Lambda + DynamoDB)"
+# Keep in sync with .python-version and the Lambda runtime (python3.14) in infra/lambda.tf.
+# ruff also reads this as its target version.
+requires-python = ">=3.14"
+dependencies = [
+    "boto3>=1.43.123",
+]
+
+[dependency-groups]
+dev = [
+    "moto[dynamodb]>=5.2.5",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.pytest.ini_options]
+# "lambda" is a Python keyword, so the handlers are imported as top-level modules.
+pythonpath = ["src/lambda"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src/lambda", "tests"]
+# Third-party packages vendored into the Lambda layer. Ruff only honours .gitignore inside a
+# git repo, so exclude them explicitly.
+extend-exclude = ["infra/build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
